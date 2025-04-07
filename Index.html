@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grafismo TV</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #333;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            height: 100vh;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        .overlay {
+            background: #24135f;
+            padding: 20px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 20px;
+            width: auto;
+            min-width: 300px;
+            opacity: 1;
+            transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
+        }
+
+        .hidden {
+            opacity: 0;
+            transform: translateY(-20px);
+            pointer-events: none;
+        }
+
+        .timer {
+            font-size: 2em;
+            font-weight: bold;
+            color: #00e6e6; /* Azul turquesa brilhante */
+            min-width: 120px;
+            text-align: left;
+        }
+
+        .lap-counter {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #ffd700;
+            background: #6a52a2;
+            padding: 10px 20px;
+            border-radius: 5px;
+        }
+
+        .race-info {
+            text-align: left;
+        }
+
+        .race-title {
+            font-size: 1.8em;
+            font-weight: bold;
+        }
+
+        .race-category {
+            font-size: 1.2em;
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: flex-start;
+        }
+
+        .button {
+            font-size: 1.2em;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            color: white;
+        }
+
+        .button-green {
+            background-color: #4CAF50; /* Verde para tempo */
+        }
+
+        .button-green:hover {
+            background-color: #45a049;
+        }
+
+        .button-yellow {
+            background-color: #f0ad4e; /* Amarelo para voltas */
+        }
+
+        .button-yellow:hover {
+            background-color: #ec971f;
+        }
+
+        .button-purple {
+            background-color: #6a52a2; /* Roxo para prova */
+            color: #ffd700; /* Texto amarelo */
+        }
+
+        .button-purple:hover {
+            background-color: #5a4392;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        input[type="number"] {
+            font-size: 1.2em;
+            padding: 5px;
+        }
+
+    </style>
+</head>
+<body>
+
+    <button onclick="toggleDashboard()">Dashboard ON/OFF</button>
+
+    <div id="dashboard" class="overlay">
+        <div class="timer" id="clock">0:00.00</div>
+        <div class="lap-counter" id="laps">LAP 0/50</div>
+        <div class="race-info">
+            <div class="race-title" id="displayRaceName">Selecionar Prova</div>
+            <div class="race-category" id="displayRaceCategory">Selecionar Categoria</div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <!-- Controles de Tempo -->
+        <div class="button-group">
+            <button class="button button-green" onclick="startStopwatch()">Iniciar Tempo</button>
+            <button class="button button-green" onclick="stopStopwatch()">Parar Tempo</button>
+            <button class="button button-green" onclick="resetStopwatch()">Resetar Tempo</button>
+        </div>
+
+        <!-- Controles de Voltas -->
+        <div class="button-group">
+            <input type="number" id="maxLaps" placeholder="Máx. Voltas" value="50" onchange="updateMaxLaps()">
+            <button class="button button-yellow" onclick="toggleLaps()">Alternar Voltas</button>
+            <button class="button button-yellow" onclick="increaseLap()">+1 Volta</button>
+            <button class="button button-yellow" onclick="decreaseLap()">-1 Volta</button>
+            <button class="button button-yellow" onclick="resetLaps()">Resetar Voltas</button>
+        </div>
+
+        <!-- Controles do Nome da Prova -->
+        <div class="button-group">
+            <input type="file" id="csvFile" accept=".csv" onchange="loadCSV(event)">
+        </div>
+
+        <div class="race-buttons" id="raceButtons"></div>
+        <div class="category-buttons" id="categoryButtons"></div>
+    </div>
+
+    <script>
+        let timer;
+        let centiseconds = 0;
+        let seconds = 0;
+        let minutes = 0;
+        let lapCount = 0;
+        let totalLaps = 50;
+        let lapsEnabled = false;
+        let races = {};
+
+        function toggleDashboard() {
+            const dashboard = document.getElementById('dashboard');
+            dashboard.classList.toggle('hidden');
+        }
+
+        function startStopwatch() {
+            if (timer) return;
+            timer = setInterval(function() {
+                centiseconds++;
+                if (centiseconds >= 100) {
+                    centiseconds = 0;
+                    seconds++;
+                }
+                if (seconds >= 60) {
+                    seconds = 0;
+                    minutes++;
+                }
+                document.getElementById('clock').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}.${centiseconds.toString().padStart(2, '0')}`;
+            }, 10);
+        }
+
+        function stopStopwatch() {
+            clearInterval(timer);
+            timer = null;
+        }
+
+        function resetStopwatch() {
+            clearInterval(timer);
+            timer = null;
+            centiseconds = 0;
+            seconds = 0;
+            minutes = 0;
+            document.getElementById('clock').textContent = "0:00.00";
+        }
+
+        function toggleLaps() {
+            lapsEnabled = !lapsEnabled;
+            document.getElementById('laps').style.display = lapsEnabled ? "block" : "none";
+        }
+
+        function increaseLap() {
+            if (lapCount < totalLaps) {
+                lapCount++;
+                updateLapsDisplay();
+            }
+        }
+
+        function decreaseLap() {
+            if (lapCount > 0) {
+                lapCount--;
+                updateLapsDisplay();
+            }
+        }
+
+        function resetLaps() {
+            lapCount = 0;
+            updateLapsDisplay();
+        }
+
+        function updateLapsDisplay() {
+            document.getElementById('laps').textContent = `LAP ${lapCount}/${totalLaps}`;
+        }
+
+        function updateMaxLaps() {
+            const maxLapsInput = document.getElementById('maxLaps');
+            totalLaps = parseInt(maxLapsInput.value);
+            if (lapCount > totalLaps) {
+                lapCount = totalLaps;  // Ajusta a contagem de voltas para o novo limite
+                updateLapsDisplay();
+            }
+        }
+
+        function loadCSV(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const lines = e.target.result.split('\n').map(line => line.trim()).filter(line => line);
+                races = {};
+                const raceButtonsDiv = document.getElementById('raceButtons');
+                raceButtonsDiv.innerHTML = '';
+
+                lines.forEach(line => {
+                    const [raceName, raceCategory] = line.split(',').map(item => item.trim());
+                    if (raceName && raceCategory) {
+                        if (!races[raceName]) {
+                            races[raceName] = [];
+                            let button = document.createElement('button');
+                            button.textContent = raceName;
+                            button.classList.add('button', 'button-purple');
+                            button.onclick = () => showCategories(raceName);
+                            raceButtonsDiv.appendChild(button);
+                        }
+                        races[raceName].push(raceCategory);
+                    }
+                });
+            };
+            reader.readAsText(file);
+        }
+
+        function showCategories(raceName) {
+            document.getElementById('displayRaceName').textContent = raceName;
+            const categoryButtonsDiv = document.getElementById('categoryButtons');
+            categoryButtonsDiv.innerHTML = '';
+
+            races[raceName].forEach(category => {
+                let button = document.createElement('button');
+                button.textContent = category;
+                button.classList.add('button', 'button-purple');
+                button.onclick = () => selectCategory(category);
+                categoryButtonsDiv.appendChild(button);
+            });
+        }
+
+        function selectCategory(category) {
+            document.getElementById('displayRaceCategory').textContent = category;
+        }
+    </script>
+</body>
+</html>
